@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Budget-Dashboard · Profile (External JS, no inline)</title>
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; script-src 'self';">
+  <style>
+    :root{--bg:#0e111c;--card:#151a2c;--muted:#9aa4bf;--text:#e9ecf5;--line:#2a2f45}
+    *{box-sizing:border-box}
+    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Helvetica,Arial,sans-serif;background:#0a0d18;color:var(--text)}
+    header{padding:16px;border-bottom:1px solid var(--line);background:#0c1122;position:sticky;top:0}
+    h1{margin:0;font-size:1.2rem}
+    p.sub{margin:.35rem 0 0;color:var(--muted)}
+    main{max-width:1100px;margin:0 auto;padding:14px}
+    .grid{display:grid;grid-template-columns:360px 1fr;gap:14px}
+    @media (max-width:960px){.grid{grid-template-columns:1fr}}
+    .card{background:#12162b;border:1px solid var(--line);border-radius:12px;padding:12px}
+    .row{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;margin:8px 0}
+    input[type=number],select{width:140px;background:#0d1020;color:#e9ecf5;border:1px solid var(--line);border-radius:10px;padding:8px}
+    input[type=range]{width:100%}
+    .pill{display:inline-block;padding:6px 10px;border:1px solid var(--line);border-radius:999px;color:#9aa4bf;font-size:.85rem;margin-right:6px}
+    .kpi{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:6px 0}
+    .kpi .item{background:#0e1224;border:1px dashed var(--line);border-radius:10px;padding:8px}
+    .kpi .item b{display:block}
+    canvas{width:100%;height:320px;background:#0c1022;border-radius:10px;border:1px solid var(--line)}
+    table{width:100%;border-collapse:collapse;margin-top:8px}
+    th,td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:right}
+    th:first-child,td:first-child{text-align:left}
+    .badge{background:#223055;border:1px solid var(--line);border-radius:10px;color:#d9e5ff;padding:6px 9px;cursor:pointer}
+    .warn{display:none;margin:8px 0;padding:10px;border-radius:10px;border:1px solid #5c2c2c;background:#2a1414;color:#f8d7da}
+    noscript{display:block;margin:10px 0;padding:10px;border:1px solid #5c2c2c;border-radius:10px;background:#2a1414;color:#f8d7da}
+    #jsfail{display:none}
+    .controls{display:flex;gap:8px;flex-wrap:wrap}
+  </style>
+</head>
+<body>
+<header>
+  <h1>Budget-Dashboard · Profile (External JS)</h1>
+  <p class="sub">Keine Inline-Events. Falls es nicht reagiert, ist JS im Browser geblockt.</p>
+</header>
+<main class="grid">
+  <section class="card">
+    <h2>Eingaben</h2>
+    <div id="err" class="warn">Hinweis: Die Seite konnte nicht initialisieren. Prüfe JavaScript-Einstellungen (siehe Anleitung unten).</div>
+    <noscript>JavaScript ist deaktiviert. Nutze die No‑JS Version.</noscript>
+
+    <div class="row">
+      <div>
+        <label>Profil wählen</label><br>
+        <small>Auswahl lädt Vorgaben, alles ist editierbar</small>
+      </div>
+      <select id="profile">
+        <option value="azubi_bb">Handwerks-Azubi · Brandenburg</option>
+        <option value="student_berlin">Student · Berlin</option>
+        <option value="geselle_sn">Geselle/Facharbeiter · Sachsen</option>
+        <option value="akademiker_be">Akademiker · Berlin</option>
+        <option value="akademiker_fam_be">Akademiker mit Familie · Berlin</option>
+        <option value="einzelhandel">Angestellte:r · Einzelhandel</option>
+        <option value="oeff_dienst">Beschäftigte:r · Öffentlicher Dienst</option>
+        <option value="oev">ÖPNV/Verkehrsbetriebe</option>
+        <option value="rentner_by">Rentner · Bayern</option>
+      </select>
+    </div>
+
+    <div class="pill" id="pillRegion">–</div>
+    <div class="pill">Stand 2025 · Schätzwerte</div>
+
+    <div class="row"><div><label>Brutto (€/Monat)</label></div><input type="number" id="gross" value="1133" step="10"></div>
+    <div class="row">
+      <div><label>Abgaben-Quote (%)</label></div>
+      <input type="range" id="dedRate" value="16" min="10" max="45" step="0.5">
+      <div id="dedLbl">16 %</div>
+    </div>
+    <div class="row"><div><label>Wohnfläche (m²)</label></div><input type="number" id="sqm" value="35" step="1"></div>
+    <div class="row"><div><label>Nettokaltmiete (€/m²)</label></div><input type="number" id="rentPerSqm" value="7.5" step="0.1"></div>
+    <div class="row"><div><label>Nebenkosten + Heizung (€/Monat)</label></div><input type="number" id="utilities" value="140" step="5"></div>
+    <div class="row"><div><label>Mobilität (€/Monat)</label></div><input type="number" id="mobility" value="120" step="5"></div>
+    <div class="row"><div><label>Lebensmittel & Haushalt (€/Monat)</label></div><input type="number" id="groceries" value="220" step="5"></div>
+    <div class="row"><div><label>Kommunikation (€/Monat)</label></div><input type="number" id="comms" value="40" step="5"></div>
+    <div class="row"><div><label>Kleidung & Schuhe (€/Monat)</label></div><input type="number" id="clothes" value="40" step="5"></div>
+    <div class="row"><div><label>Freizeit, Sport & Kultur (€/Monat)</label></div><input type="number" id="leisure" value="90" step="5"></div>
+    <div class="row"><div><label>Gesundheit & Versicherungen (€/Monat)</label></div><input type="number" id="health" value="35" step="5"></div>
+    <div class="row"><div><label>Sparen / Rücklage (€/Monat)</label></div><input type="number" id="saving" value="80" step="5"></div>
+    <div class="row"><div><label>Sonstiges (€/Monat)</label></div><input type="number" id="other" value="60" step="5"></div>
+
+    <div class="controls">
+      <button id="btnDefaults" class="badge" type="button">Profil-Defaults</button>
+      <button id="btnNormalize" class="badge" type="button">Anteile normalisieren</button>
+      <button id="btnDiag" class="badge" type="button">JS Diagnose</button>
+    </div>
+
+    <div id="diag" class="card" style="margin-top:10px">
+      <h3 style="margin:0 0 6px">Diagnose</h3>
+      <pre id="diagOut" style="white-space:pre-wrap;word-break:break-word;background:#0c1022;padding:8px;border-radius:8px;max-height:220px;overflow:auto">(leer)</pre>
+    </div>
+
+    <div id="jsfail" class="warn">JS-Hinweis: Offenbar ist JavaScript blockiert. Auf iPhone: „In Safari öffnen“ (kein In‑App‑Viewer), dann Einstellungen ▶︎ Safari ▶︎ Erweitert ▶︎ JavaScript aktivieren.</div>
+  </section>
+
+  <section class="card">
+    <h2>Ergebnisse</h2>
+    <div class="kpi">
+      <div class="item"><small>Netto (nach Abgaben)</small><b id="netto">–</b></div>
+      <div class="item"><small>Wohnen (warm)</small><b id="rentWarm">–</b></div>
+      <div class="item"><small>Verfügbar nach Wohnen</small><b id="afterHousing">–</b></div>
+      <div class="item"><small>Sparquote</small><b id="saveRate">–</b></div>
+    </div>
+    <canvas id="chartDonut"></canvas>
+    <table id="tbl">
+      <thead><tr><th>Kategorie</th><th>€ / Monat</th><th>Anteil</th></tr></thead>
+      <tbody></tbody>
+      <tfoot><tr><td>Summe Ausgaben</td><td id="sumEur">–</td><td id="sumPct">–</td></tr></tfoot>
+    </table>
+
+    <div class="card" style="margin-top:10px">
+      <h3 style="margin:0 0 6px">iPhone: JavaScript einschalten / richtig öffnen</h3>
+      <ol style="margin:0;padding-left:18px;color:#cbd3ee">
+        <li>Öffne die Datei **in Safari** (nicht im In‑App‑Viewer). In vielen Apps: Teilen ▶︎ „In Safari öffnen“.</li>
+        <li>iOS: **Einstellungen ▶︎ Safari ▶︎ Erweitert ▶︎ JavaScript** → aktivieren.</li>
+        <li>Deaktiviere testweise Content‑Blocker (Einstellungen ▶︎ Safari ▶︎ **Inhaltsblocker**).</li>
+        <li>Wenn du Edge/Chrome auf iOS nutzt: Sie verwenden intern Safari/WebKit. Öffne die Datei auch dort über „Öffnen in …“.</li>
+      </ol>
+    </div>
+  </section>
+</main>
+
+<script src="app_budget_profiles.js"></script>
+</body>
+</html>
