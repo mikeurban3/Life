@@ -1,0 +1,485 @@
+
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<link rel="manifest" href="let_v3_manifest.json">
+<title>Lebenserwartung – Vergleich (v3)</title>
+<style>
+  :root{
+    --bg:#0e1222; --panel:#171b2e; --muted:#9aa3b7; --text:#eef2ff;
+    --line:#253056; --accent:#5fd2ff; --accent2:#a6ff79; --warn:#ffd36d; --bad:#ff7b7b;
+    --ok:#5bffb0;
+  }
+  [data-theme="light"]{
+    --bg:#f6f8ff; --panel:#ffffff; --muted:#5b678a; --text:#0b1430;
+    --line:#e4e8f5; --accent:#2f7dff; --accent2:#3ac37b; --warn:#e69b00; --bad:#e14a4a; --ok:#0a9c5d;
+  }
+  *{box-sizing:border-box;font-family:system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial,sans-serif}
+  body{margin:0;background:linear-gradient(180deg,var(--bg),var(--bg));color:var(--text)}
+  header{padding:14px 12px;border-bottom:1px solid var(--line);display:flex;gap:10px;align-items:center;justify-content:space-between;position:sticky;top:0;background:var(--bg);z-index:5}
+  h1{font-size:18px;margin:0}
+  .muted{color:var(--muted)}
+  main{padding:12px;max-width:1100px;margin:0 auto}
+  .tabs{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}
+  .tab{padding:10px 12px;border:1px solid var(--line);border-radius:999px;background:var(--panel);cursor:pointer;font-weight:600}
+  .tab[aria-selected="true"]{outline:2px solid var(--accent)}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  @media (max-width:900px){ .grid{grid-template-columns:1fr} }
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px}
+  h2{font-size:16px;margin:0 0 10px 0}
+  .section{margin-top:8px}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  @media (max-width:720px){ .row{grid-template-columns:1fr} }
+  .field{margin-bottom:10px}
+  label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px}
+  select,input[type="number"],input[type="range"]{width:100%;background:transparent;border:1px solid var(--line);color:var(--text);border-radius:10px;padding:10px;font-size:15px}
+  .out{font-size:12px;color:var(--muted);margin-top:4px}
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:8px}
+  @media (max-width:900px){ .kpis{grid-template-columns:1fr 1fr} }
+  .kpi{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px}
+  .big{font-size:26px;font-weight:800}
+  .barwrap{height:20px;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:rgba(0,0,0,.06);margin-top:6px}
+  .bar{height:100%;width:0%;background:linear-gradient(90deg,var(--accent),var(--accent2))}
+  .bad{background:linear-gradient(90deg,var(--bad),var(--warn))}
+  .tags{margin-top:6px}
+  .tag{display:inline-block;border:1px solid var(--line);border-radius:999px;padding:4px 10px;font-size:12px;color:var(--muted);margin:3px 6px 0 0}
+  .chart{height:280px;border:1px solid var(--line);border-radius:12px;margin-top:10px;position:relative;background:var(--panel)}
+  .btn{background:linear-gradient(90deg,#3a58ff,var(--accent));border:0;border-radius:10px;color:white;padding:10px 12px;font-weight:700;cursor:pointer}
+  .btn.ghost{background:transparent;border:1px solid var(--line);color:var(--text);font-weight:600}
+  .toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+  .pill{border:1px solid var(--line);border-radius:999px;padding:6px 10px}
+  .right{margin-left:auto}
+  .hint{font-size:12px;color:var(--muted);margin-top:4px}
+  details{border:1px dashed var(--line);border-radius:12px;padding:8px;margin-top:8px}
+  summary{cursor:pointer;font-weight:600}
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>Lebenserwartung – Vergleich (v3)</h1>
+    <div class="muted">Profi‑Tool • offline • zwei Profile (A/B)</div>
+  </div>
+  <div class="toolbar">
+    <button class="btn ghost" id="themeBtn" title="Hell/Dunkel umschalten">🌗 Theme</button>
+    <button class="btn ghost" id="exportCsvBtn" title="Export CSV der Profile">⬇️ CSV</button>
+    <button class="btn ghost" id="resetBtn" title="Einstellungen zurücksetzen">↺ Reset</button>
+  </div>
+</header>
+<main>
+  <nav class="tabs" role="tablist">
+    <button class="tab" role="tab" aria-selected="true" data-tab="setup">1) Profile & Faktoren</button>
+    <button class="tab" role="tab" aria-selected="false" data-tab="compare">2) Vergleich & Diagramme</button>
+    <button class="tab" role="tab" aria-selected="false" data-tab="whatif">3) Was‑wäre‑wenn</button>
+    <button class="tab" role="tab" aria-selected="false" data-tab="about">ℹ️ Hinweise</button>
+  </nav>
+
+  <section id="tab_setup" class="panel">
+    <h2>Profile A und B – Eingaben</h2>
+    <div class="grid">
+      <div id="A" class="section">
+        <div class="row">
+          <div class="field"><label>Alter (Jahre) – berechnet Restlebenserwartung</label><input id="A_age" type="number" min="0" max="100" value="35"></div>
+          <div class="field"><label>Geschlecht</label><select id="A_gender"><option>männlich</option><option>weiblich</option></select></div>
+          <div class="field"><label>Land</label><select id="A_country"></select></div>
+          <div class="field"><label>Bundesland (DE)</label><select id="A_state"></select></div>
+        </div>
+        <div class="row">
+          <div class="field"><label>Stadt/Land</label><select id="A_cityRural"></select></div>
+          <div class="field"><label>Beruf</label><select id="A_occ"></select></div>
+          <div class="field"><label>Bildung</label><select id="A_edu"></select></div>
+          <div class="field"><label>Einkommen/Vermögen</label><select id="A_inc"></select></div>
+        </div>
+        <div class="row">
+          <div class="field"><label>Rauchen</label><select id="A_smoke"></select></div>
+          <div class="field"><label>Alkohol</label><select id="A_alc"></select></div>
+          <div class="field"><label>Ernährung</label><select id="A_diet"></select></div>
+          <div class="field"><label>Blutdruck</label><select id="A_bp"></select></div>
+        </div>
+        <div class="row">
+          <div class="field"><label>Impfstatus</label><select id="A_vax"></select></div>
+          <div class="field"><label>Vorsorge/Screenings</label><select id="A_scr"></select></div>
+          <div class="field"><label>Sport (min/Woche)</label><input id="A_sport" type="range" min="0" max="600" step="10" value="150"><div class="out" id="A_sport_out">150 min/Woche</div></div>
+          <div class="field"><label>Pendeln (km/Tag, Auto)</label><input id="A_commute" type="number" min="0" max="400" step="5" value="0"></div>
+        </div>
+        <details><summary>Profil A sichern / laden</summary>
+          <div class="toolbar">
+            <button class="btn ghost" onclick="copyProfile('A')">Als JSON kopieren</button>
+            <button class="btn ghost" onclick="loadProfilePrompt('A')">Aus JSON laden</button>
+          </div>
+        </details>
+      </div>
+
+      <div id="B" class="section">
+        <div class="row">
+          <div class="field"><label>Alter (Jahre)</label><input id="B_age" type="number" min="0" max="100" value="35"></div>
+          <div class="field"><label>Geschlecht</label><select id="B_gender"><option>männlich</option><option>weiblich</option></select></div>
+          <div class="field"><label>Land</label><select id="B_country"></select></div>
+          <div class="field"><label>Bundesland (DE)</label><select id="B_state"></select></div>
+        </div>
+        <div class="row">
+          <div class="field"><label>Stadt/Land</label><select id="B_cityRural"></select></div>
+          <div class="field"><label>Beruf</label><select id="B_occ"></select></div>
+          <div class="field"><label>Bildung</label><select id="B_edu"></select></div>
+          <div class="field"><label>Einkommen/Vermögen</label><select id="B_inc"></select></div>
+        </div>
+        <div class="row">
+          <div class="field"><label>Rauchen</label><select id="B_smoke"></select></div>
+          <div class="field"><label>Alkohol</label><select id="B_alc"></select></div>
+          <div class="field"><label>Ernährung</label><select id="B_diet"></select></div>
+          <div class="field"><label>Blutdruck</label><select id="B_bp"></select></div>
+        </div>
+        <div class="row">
+          <div class="field"><label>Impfstatus</label><select id="B_vax"></select></div>
+          <div class="field"><label>Vorsorge/Screenings</label><select id="B_scr"></select></div>
+          <div class="field"><label>Sport (min/Woche)</label><input id="B_sport" type="range" min="0" max="600" step="10" value="150"><div class="out" id="B_sport_out">150 min/Woche</div></div>
+          <div class="field"><label>Pendeln (km/Tag, Auto)</label><input id="B_commute" type="number" min="0" max="400" step="5" value="0"></div>
+        </div>
+        <details><summary>Profil B sichern / laden</summary>
+          <div class="toolbar">
+            <button class="btn ghost" onclick="copyProfile('B')">Als JSON kopieren</button>
+            <button class="btn ghost" onclick="loadProfilePrompt('B')">Aus JSON laden</button>
+          </div>
+        </details>
+      </div>
+    </div>
+
+    <div class="kpis">
+      <div class="kpi"><div class="muted">LE A (Rest)</div><div class="big" id="leA">–</div><div class="hint" id="baseA"></div></div>
+      <div class="kpi"><div class="muted">LE B (Rest)</div><div class="big" id="leB">–</div><div class="hint" id="baseB"></div></div>
+      <div class="kpi"><div class="muted">Δ A vs. Basis</div><div class="big" id="deltaA">–</div><div class="barwrap"><div class="bar" id="qiA"></div></div></div>
+      <div class="kpi"><div class="muted">Δ B vs. Basis</div><div class="big" id="deltaB">–</div><div class="barwrap"><div class="bar" id="qiB"></div></div></div>
+    </div>
+    <div class="tags" id="tagsA"></div>
+    <div class="tags" id="tagsB"></div>
+  </section>
+
+  <section id="tab_compare" class="panel" hidden>
+    <h2>Vergleich & Diagramme</h2>
+    <div class="toolbar">
+      <button class="btn" id="exportSvgBtn">📤 Diagramme exportieren (SVG)</button>
+      <span class="pill">Top‑Einflüsse werden automatisch markiert</span>
+      <span class="pill right" id="uncertaintyTxt">Unsicherheit: ± –</span>
+    </div>
+    <div class="chart" id="chartBars"></div>
+    <div class="chart" id="chartStack"></div>
+    <div class="hint">Die Balken zeigen die <b>Restlebenserwartung</b> ab aktuellem Alter. Schattierung = Unsicherheitsband (±2σ‑Heuristik).</div>
+  </section>
+
+  <section id="tab_whatif" class="panel" hidden>
+    <h2>Was‑wäre‑wenn (Profil A)</h2>
+    <div class="row">
+      <div class="field"><label>Rauchen reduzieren (Zigaretten/Tag)</label><input id="W_smoke" type="range" min="0" max="20" step="1" value="20"><div class="out" id="W_smoke_out">20/Tag</div></div>
+      <div class="field"><label>Sport erhöhen (min/Woche)</label><input id="W_sport" type="range" min="0" max="600" step="10" value="150"><div class="out" id="W_sport_out">150 min/Woche</div></div>
+      <div class="field"><label>Blutdruck auf „kontrolliert“</label><select id="W_bp"><option>Keine Änderung</option><option>Behandelt/kontrolliert</option></select></div>
+      <div class="field"><label>Ernährung auf „Mediterran“</label><select id="W_diet"><option>Keine Änderung</option><option>Mediterran</option></select></div>
+    </div>
+    <div class="kpis">
+      <div class="kpi"><div class="muted">LE A – jetzt</div><div class="big" id="W_now">–</div></div>
+      <div class="kpi"><div class="muted">LE A – Szenario</div><div class="big" id="W_new">–</div></div>
+      <div class="kpi"><div class="muted">Gewinn</div><div class="big" id="W_gain">–</div></div>
+      <div class="kpi"><div class="muted">Größter Hebel</div><div class="big" id="W_best">–</div></div>
+    </div>
+    <div class="chart" id="chartWhatIf"></div>
+  </section>
+
+  <section id="tab_about" class="panel" hidden>
+    <h2>Hinweise & Annahmen</h2>
+    <p>Das Modell kombiniert Basis‑Lebenserwartungen (OECD/WHO/Destatis) mit Add‑On‑Effekten (Bildung/Einkommen/Beruf/Rauchen/Bewegung/Blutdruck/Vorsorge etc.).
+       Die Effekte sind vereinfachend additiv, werden aber <b>gedeckelt</b> (±12 Jahre) und teils <b>nichtlinear</b> modelliert (Sport‑Sättigung, Alkohol‑U‑Muster).</p>
+    <ul>
+      <li><b>Restlebenserwartung:</b> Basis wird aus Land+Geschlecht geschätzt und vom Alter abhängig verkürzt.</li>
+      <li><b>Sport:</b> +1 Jahr bei ~150 min/Woche, Sättigung bis ~+3 Jahre (&gt;=450 min).</li>
+      <li><b>Rauchen:</b> lineare Approx. bis ~–10 Jahre bei ≈20/Tag (Langzeitmittel).</li>
+      <li><b>Blutdruck:</b> Stufe 1 ≈ –1.5 J, Stufe 2+ ≈ –3 J; „kontrolliert“ ≈ –0.5 J.</li>
+      <li><b>Unsicherheitsband:</b> Heuristik aus Summe |Effekt| → ±(0.15 × Summe) begrenzt auf ±2.5 J.</li>
+      <li><b>Datenqualität:</b> Balken „Qualitätsindikator“ zeigt, wie gut die Eingaben die Modellbereiche abdecken.</li>
+    </ul>
+    <p>Dies ist <b>kein medizinisches Produkt</b> und ersetzt keine ärztliche Beratung.</p>
+  </section>
+</main>
+
+<script>
+const DATA = {
+  countries: {"Deutschland":{male:79.0,female:83.2},"Schweiz":{male:81.9,female:85.6},"Japan":{male:81.5,female:87.7},"USA":{male:74.5,female:80.2},"Weltweit":{male:70.8,female:73.8}},
+  statesDE: {"—":0,"Baden-Württemberg":1.0,"Bayern":0.8,"Hessen":0.4,"NRW":-0.2,"Saarland":-0.4,"Niedersachsen":0.0,"Rheinland-Pfalz":0.1,"Berlin":-0.2,"Hamburg":0.0,"Bremen":-0.3,"Schleswig-Holstein":0.2,"Sachsen":-0.4,"Sachsen-Anhalt":-1.2,"Thüringen":-0.6,"Brandenburg":-0.5,"Mecklenburg-Vorpommern":-0.7},
+  cityRural: {"Stadt":-0.2,"Land":0.2},
+  occ: {"Büro/Angestellt":0.0,"Beamter":2.0,"Selbständig":-0.5,"Handwerk/Arbeiter":-3.5,"Schicht/Schwere körperliche Arbeit":-5.0},
+  edu: {"Niedrig":-3.0,"Mittel":-1.0,"Hoch":1.5},
+  inc: {"Unteres Quintil":-4.0,"Mittleres Quintil":-1.0,"Oberes Quintil":2.0},
+  smoke: {"Nicht-Raucher":0,"Gelegenheitsraucher":-1.0,"Täglich (≤10/Tag)":-5.0,"Täglich (≈20/Tag)":-10.0},
+  alc: {"Kein/selten":0,"Mäßig":0,"Hoch":-2.0},
+  diet: {"Schlecht":-2.0,"Durchschnittlich":0.0,"Gut":1.0,"Mediterran":2.0},
+  bp: {"Normal":0.0,"Erhöht (hoch-normal)":-0.5,"Hypertonie Stufe 1":-1.5,"Hypertonie Stufe 2+":-3.0,"Behandelt/kontrolliert":-0.5},
+  vax: {"Unvollständig":0.0,"Aktuell/empfohlen":0.2},
+  scr: {"Unregelmäßig":0.0,"Leitliniengerecht":0.5}
+};
+
+function setTheme(t){ document.documentElement.setAttribute("data-theme", t); localStorage.setItem("theme", t); }
+document.getElementById("themeBtn").onclick=()=>{
+  const cur=document.documentElement.getAttribute("data-theme")||"dark";
+  setTheme(cur==="dark"?"light":"dark");
+};
+setTheme(localStorage.getItem("theme")||"dark");
+
+document.querySelectorAll(".tab").forEach(btn=>{
+  btn.addEventListener("click",()=>{
+    document.querySelectorAll(".tab").forEach(b=>b.setAttribute("aria-selected","false"));
+    btn.setAttribute("aria-selected","true");
+    const id=btn.dataset.tab;
+    ["setup","compare","whatif","about"].forEach(t=> document.getElementById("tab_"+t).hidden = (t!==id));
+  });
+});
+
+function fill(id, opts){ const el=document.getElementById(id); el.innerHTML=""; Object.keys(opts).forEach(k=>{ const o=document.createElement("option"); o.value=k; o.textContent=k; el.appendChild(o); }); }
+["A","B"].forEach(p=>{
+  fill(p+"_country", DATA.countries);
+  fill(p+"_state", DATA.statesDE);
+  fill(p+"_cityRural", DATA.cityRural);
+  fill(p+"_occ", DATA.occ);
+  fill(p+"_edu", DATA.edu);
+  fill(p+"_inc", DATA.inc);
+  fill(p+"_smoke", DATA.smoke);
+  fill(p+"_alc", DATA.alc);
+  fill(p+"_diet", DATA.diet);
+  fill(p+"_bp", DATA.bp);
+  fill(p+"_vax", DATA.vax);
+  fill(p+"_scr", DATA.scr);
+  document.getElementById(p+"_country").value="Deutschland";
+  document.getElementById(p+"_state").value="—";
+  document.getElementById(p+"_cityRural").value="Stadt";
+  document.getElementById(p+"_occ").value="Büro/Angestellt";
+  document.getElementById(p+"_edu").value="Mittel";
+  document.getElementById(p+"_inc").value="Mittleres Quintil";
+  document.getElementById(p+"_smoke").value="Nicht-Raucher";
+  document.getElementById(p+"_alc").value="Mäßig";
+  document.getElementById(p+"_diet").value="Durchschnittlich";
+  document.getElementById(p+"_bp").value="Normal";
+  document.getElementById(p+"_vax").value="Aktuell/empfohlen";
+  document.getElementById(p+"_scr").value="Leitliniengerecht";
+});
+
+function baseline(country, gender){
+  const c = DATA.countries[country]||DATA.countries["Weltweit"];
+  return (gender==="männlich"?c.male:c.female);
+}
+function remainingLE(baseAtBirth, age){
+  const raw=Math.max(0, baseAtBirth - age);
+  const adj = raw + (age>70?3:age>50?2:1);
+  return adj;
+}
+function sportGain(m){ const mm=Math.max(0,Math.min(600,m)); return Math.min(3, mm/150); }
+function commutePenalty(km){ const y=Math.max(0,Math.min(100000, km*220)); return (y/40000)*0.1; }
+
+function readProfile(prefix){
+  const g=id=>document.getElementById(prefix+"_"+id).value;
+  const n=id=>+document.getElementById(prefix+"_"+id).value;
+  return { age:n("age"), gender:g("gender"), country:g("country"), state:g("state"), cityRural:g("cityRural"), occ:g("occ"),
+           edu:g("edu"), inc:g("inc"), smoke:g("smoke"), alc:g("alc"), diet:g("diet"), bp:g("bp"), vax:g("vax"), scr:g("scr"),
+           sport:n("sport"), commute:n("commute") };
+}
+function partsFor(p){
+  return {
+    state: (p.country==="Deutschland")? (DATA.statesDE[p.state]||0):0,
+    city: DATA.cityRural[p.cityRural]||0,
+    occ: DATA.occ[p.occ]||0,
+    edu: DATA.edu[p.edu]||0,
+    inc: DATA.inc[p.inc]||0,
+    smo: DATA.smoke[p.smoke]||0,
+    alc: DATA.alc[p.alc]||0,
+    diet: DATA.diet[p.diet]||0,
+    bp: DATA.bp[p.bp]||0,
+    vax: DATA.vax[p.vax]||0,
+    scr: DATA.scr[p.scr]||0,
+    sport: sportGain(p.sport),
+    commute: -commutePenalty(p.commute)
+  };
+}
+function sumParts(parts){ let s=0; Object.values(parts).forEach(v=> s+=v); return Math.max(-12, Math.min(12, s)); }
+function qualityIndex(p){
+  let score=0,max=12;
+  ["occ","edu","inc","smoke","alc","diet","bp","vax","scr"].forEach(k=>{ if(p[k])score++; });
+  if(p.sport!=null)score++; if(p.commute!=null)score++; if(p.cityRural)score++;
+  return Math.round((score/max)*100);
+}
+function tags(parts){
+  const L=[["Bundesland","state"],["Stadt/Land","city"],["Beruf","occ"],["Bildung","edu"],["Einkommen","inc"],["Rauchen","smo"],["Alkohol","alc"],["Ernährung","diet"],["Blutdruck","bp"],["Impfungen","vax"],["Vorsorge","scr"],["Sport","sport"],["Pendeln","commute"]];
+  return L.map(([n,k])=>`<span class="tag" title="${n}">${n}: ${(parts[k]>=0?"+":"")}${parts[k].toFixed(1)} J</span>`).join(" ");
+}
+function uncertainty(parts){ let s=0; Object.values(parts).forEach(v=> s+=Math.abs(v)); return Math.min(2.5, 0.15*s); }
+function topFactors(parts, n=3){ return Object.entries(parts).map(([k,v])=>({k,v})).sort((a,b)=> Math.abs(b.v)-Math.abs(a.v)).slice(0,n); }
+
+function compute(prefix){
+  const p = readProfile(prefix);
+  document.getElementById(prefix+"_sport_out")?.innerText = p.sport+" min/Woche";
+  const baseBirth = baseline(p.country, p.gender);
+  const baseRemain = remainingLE(baseBirth, p.age);
+  const parts = partsFor(p);
+  const delta = sumParts(parts);
+  const estRemain = Math.max(0, Math.min(80, baseRemain + delta));
+  const q = qualityIndex(p);
+  return {p, baseBirth, baseRemain, parts, delta, estRemain, q};
+}
+function onChange(){
+  const A = compute("A");
+  const B = compute("B");
+  document.getElementById("leA").innerText = A.estRemain.toFixed(1)+" J";
+  document.getElementById("leB").innerText = B.estRemain.toFixed(1)+" J";
+  document.getElementById("baseA").innerText = `Basis Rest: ${A.baseRemain.toFixed(1)} J (aus ${A.baseBirth.toFixed(1)} bei Geburt, ${A.p.age} J alt)`;
+  document.getElementById("baseB").innerText = `Basis Rest: ${B.baseRemain.toFixed(1)} J (aus ${B.baseBirth.toFixed(1)} bei Geburt, ${B.p.age} J alt)`;
+  document.getElementById("deltaA").innerText = (A.delta>=0?"+":"")+A.delta.toFixed(1)+" J";
+  document.getElementById("deltaB").innerText = (B.delta>=0?"+":"")+B.delta.toFixed(1)+" J";
+  const qiA = document.getElementById("qiA"); qiA.style.width = A.q+"%"; qiA.className = "bar"+(A.q<50?" bad":"");
+  const qiB = document.getElementById("qiB"); qiB.style.width = B.q+"%"; qiB.className = "bar"+(B.q<50?" bad":"");
+  document.getElementById("tagsA").innerHTML = tags(A.parts);
+  document.getElementById("tagsB").innerHTML = tags(B.parts);
+  drawBars(A, B);
+  drawStack(A.parts, B.parts);
+  const u = Math.max(uncertainty(A.parts), uncertainty(B.parts));
+  document.getElementById("uncertaintyTxt").innerText = `Unsicherheit: ±${u.toFixed(1)} J`;
+  localStorage.setItem("LET_v3_A", JSON.stringify(A.p));
+  localStorage.setItem("LET_v3_B", JSON.stringify(B.p));
+}
+
+function restore(){
+  ["A","B"].forEach(prefix=>{
+    const raw=localStorage.getItem("LET_v3_"+prefix);
+    if(!raw) return;
+    try{ const p=JSON.parse(raw); Object.keys(p).forEach(k=>{ const el=document.getElementById(prefix+"_"+k); if(el) el.value=p[k]; }); }catch(e){}
+  });
+}
+
+function drawBars(A,B){
+  const el=document.getElementById("chartBars"); el.innerHTML="";
+  const w=el.clientWidth,h=el.clientHeight,p={l:52,r:12,t:12,b:28};
+  const NS="http://www.w3.org/2000/svg"; const s=document.createElementNS(NS,"svg"); s.setAttribute("width","100%"); s.setAttribute("height","100%"); el.appendChild(s);
+  const min=0,max=80; const x=v=> p.l + ((v-min)/(max-min))*(w-p.l-p.r);
+  const axis=document.createElementNS(NS,"line"); axis.setAttribute("x1",p.l); axis.setAttribute("y1",h-p.b); axis.setAttribute("x2",w-p.r); axis.setAttribute("y2",h-p.b); axis.setAttribute("stroke","#2b3562"); s.appendChild(axis);
+  [10,20,30,40,50,60,70].forEach(t=>{ const lx=x(t); const tick=document.createElementNS(NS,"line"); tick.setAttribute("x1",lx); tick.setAttribute("y1",h-p.b-5); tick.setAttribute("x2",lx); tick.setAttribute("y2",h-p.b+5); tick.setAttribute("stroke","#2b3562"); s.appendChild(tick);
+    const tx=document.createElementNS(NS,"text"); tx.setAttribute("x",lx); tx.setAttribute("y",h-6); tx.setAttribute("fill","var(--muted)"); tx.setAttribute("font-size","11"); tx.setAttribute("text-anchor","middle"); tx.textContent=t; s.appendChild(tx); });
+  function one(label,val,y,c1,c2,u){
+    const defs=document.createElementNS(NS,"defs"); const grad=document.createElementNS(NS,"linearGradient"); grad.setAttribute("id","g"+label); grad.innerHTML=`<stop offset="0%" stop-color="${c1}"/><stop offset="100%" stop-color="${c2}"/>`; defs.appendChild(grad); s.appendChild(defs);
+    const xb=x(val), xu1=x(Math.max(min, val-u)), xu2=x(Math.min(max, val+u));
+    const band=document.createElementNS(NS,"rect"); band.setAttribute("x",xu1); band.setAttribute("y",y-8); band.setAttribute("width",Math.max(2,xu2-xu1)); band.setAttribute("height",16); band.setAttribute("fill","rgba(95,210,255,0.18)"); s.appendChild(band);
+    const ln=document.createElementNS(NS,"line"); ln.setAttribute("x1",p.l); ln.setAttribute("x2",xb); ln.setAttribute("y1",y); ln.setAttribute("y2",y); ln.setAttribute("stroke","url(#g"+label+")"); ln.setAttribute("stroke-width","12"); s.appendChild(ln);
+    const tx=document.createElementNS(NS,"text"); tx.setAttribute("x",xb+6); tx.setAttribute("y",y+4); tx.setAttribute("fill","var(--text)"); tx.setAttribute("font-size","12"); tx.textContent=`${label}: ${val.toFixed(1)} J`; s.appendChild(tx);
+  }
+  const cs=getComputedStyle(document.documentElement);
+  one("A", A.estRemain, 90, cs.getPropertyValue("--accent").trim(), cs.getPropertyValue("--accent2").trim(), Math.min(2.5,0.15*Object.values(A.parts).map(x=>Math.abs(x)).reduce((a,b)=>a+b,0)));
+  one("B", B.estRemain, 140, cs.getPropertyValue("--bad").trim(), cs.getPropertyValue("--warn").trim(), Math.min(2.5,0.15*Object.values(B.parts).map(x=>Math.abs(x)).reduce((a,b)=>a+b,0)));
+}
+function drawStack(partsA, partsB){
+  const el=document.getElementById("chartStack"); el.innerHTML="";
+  const w=el.clientWidth,h=el.clientHeight,p={l:98,r:12,t:12,b:20};
+  const NS="http://www.w3.org/2000/svg"; const s=document.createElementNS(NS,"svg"); s.setAttribute("width","100%"); s.setAttribute("height","100%"); el.appendChild(s);
+  const keys=["state","city","occ","edu","inc","smo","alc","diet","bp","vax","scr","sport","commute"];
+  const labels={state:"Bundesland",city:"Stadt/Land",occ:"Beruf",edu:"Bildung",inc:"Einkommen",smo:"Rauchen",alc:"Alkohol",diet:"Ernährung",bp:"Blutdruck",vax:"Impfungen",scr:"Vorsorge",sport:"Sport",commute:"Pendeln"};
+  const min=-6,max=6, band=(h-p.t-p.b)/keys.length, x=v=> p.l + ((v-min)/(max-min))*(w-p.l-p.r), zero=x(0);
+  const z=document.createElementNS(NS,"line"); z.setAttribute("x1",zero); z.setAttribute("x2",zero); z.setAttribute("y1",p.t); z.setAttribute("y2",h-p.b); z.setAttribute("stroke","#2b3562"); s.appendChild(z);
+  function draw(parts,off,color){
+    keys.forEach((k,i)=>{
+      const v=parts[k]||0; const y=p.t+i*band+4+off; const xs=(v>=0?zero:x(v)), xe=(v>=0?x(v):zero);
+      const r=document.createElementNS(NS,"rect"); r.setAttribute("x",xs); r.setAttribute("y",y); r.setAttribute("width",Math.abs(xe-xs)); r.setAttribute("height",(band-8)/2); r.setAttribute("fill",color); s.appendChild(r);
+      if(off===0){ const tx=document.createElementNS(NS,"text"); tx.setAttribute("x",p.l-6); tx.setAttribute("y",y+10); tx.setAttribute("fill","var(--muted)"); tx.setAttribute("font-size","11"); tx.setAttribute("text-anchor","end"); tx.textContent=labels[k]; s.appendChild(tx); }
+    });
+  }
+  const cs=getComputedStyle(document.documentElement);
+  draw(partsA,0, cs.getPropertyValue("--accent").trim());
+  draw(partsB,(band-8)/2, cs.getPropertyValue("--warn").trim());
+}
+
+document.getElementById("exportCsvBtn").onclick=()=>{
+  const A=compute("A").p, B=compute("B").p;
+  const cols=["Profil","age","gender","country","state","cityRural","occ","edu","inc","smoke","alc","diet","bp","vax","scr","sport","commute"];
+  const rows=[cols.join(",")];
+  const esc=v=> (""+v).replaceAll('"','""');
+  rows.push(["A",...cols.slice(1).map(c=>`"${esc(A[c])}"`)].join(","));
+  rows.push(["B",...cols.slice(1).map(c=>`"${esc(B[c])}"`)].join(","));
+  const blob=new Blob([rows.join("\n")],{type:"text/csv"}); const url=URL.createObjectURL(blob);
+  const a=document.createElement("a"); a.href=url; a.download="lebenserwartung_profiles.csv"; a.click(); URL.revokeObjectURL(url);
+};
+document.getElementById("exportSvgBtn").onclick=()=>{
+  const svgs=document.querySelectorAll(".chart svg"); let i=1;
+  svgs.forEach(svg=>{ const data=new XMLSerializer().serializeToString(svg); const blob=new Blob([data],{type:"image/svg+xml"});
+    const url=URL.createObjectURL(blob); const a=document.createElement("a"); a.href=url; a.download="chart_"+(i++)+".svg"; a.click(); URL.revokeObjectURL(url); });
+};
+document.getElementById("resetBtn").onclick=()=>{ localStorage.removeItem("LET_v3_A"); localStorage.removeItem("LET_v3_B"); location.reload(); };
+
+function copyProfile(which){
+  const p=compute(which).p; const txt=JSON.stringify(p,null,2);
+  navigator.clipboard.writeText(txt).then(()=>alert("Profil "+which+" kopiert.")).catch(()=>prompt("Kopiere manuell:",txt));
+}
+function loadProfilePrompt(which){
+  const txt=prompt("Profil‑JSON einfügen:"); if(!txt) return;
+  try{ const p=JSON.parse(txt); Object.keys(p).forEach(k=>{ const el=document.getElementById(which+"_"+k); if(el) el.value=p[k]; }); onChange(); }
+  catch(e){ alert("Ungültiges JSON."); }
+}
+
+["A","B"].forEach(p=>{
+  document.querySelectorAll(`#${p} select, #${p} input`).forEach(el=>{
+    el.addEventListener("change", onChange);
+    el.addEventListener("input", ()=>{
+      if(el.id.endsWith("_sport")) document.getElementById(p+"_sport_out").innerText = el.value+" min/Woche";
+      onChange();
+    });
+  });
+});
+
+function computeWhatIf(){
+  const A=compute("A");
+  const cigs=+document.getElementById("W_smoke").value; document.getElementById("W_smoke_out").innerText=cigs+"/Tag";
+  const sp=+document.getElementById("W_sport").value; document.getElementById("W_sport_out").innerText=sp+" min/Woche";
+  const toBP=document.getElementById("W_bp").value;
+  const toDiet=document.getElementById("W_diet").value;
+  const p2=JSON.parse(JSON.stringify(A.p));
+  p2.sport=sp;
+  if(toBP==="Behandelt/kontrolliert") p2.bp="Behandelt/kontrolliert";
+  if(toDiet==="Mediterran") p2.diet="Mediterran";
+  if(cigs===0) p2.smoke="Nicht-Raucher";
+  else if(cigs<=5) p2.smoke="Gelegenheitsraucher";
+  else if(cigs<=10) p2.smoke="Täglich (≤10/Tag)";
+  else p2.smoke="Täglich (≈20/Tag)";
+
+  const nowP=partsFor(A.p), newP=partsFor(p2);
+  const now=Math.max(0, Math.min(80, A.baseRemain + sumParts(nowP)));
+  const neu=Math.max(0, Math.min(80, A.baseRemain + sumParts(newP)));
+  const gain=neu-now;
+
+  document.getElementById("W_now").innerText=now.toFixed(1)+" J";
+  document.getElementById("W_new").innerText=neu.toFixed(1)+" J";
+  document.getElementById("W_gain").innerText=(gain>=0?"+":"")+gain.toFixed(1)+" J";
+
+  const diffs=Object.keys(nowP).map(k=>({k, dv:(newP[k]-nowP[k])})).sort((a,b)=>Math.abs(b.dv)-Math.abs(a.dv));
+  const labels={state:"Bundesland",city:"Stadt/Land",occ:"Beruf",edu:"Bildung",inc:"Einkommen",smo:"Rauchen",alc:"Alkohol",diet:"Ernährung",bp:"Blutdruck",vax:"Impfungen",scr:"Vorsorge",sport:"Sport",commute:"Pendeln"};
+  document.getElementById("W_best").innerText=labels[diffs[0].k]+" ("+(diffs[0].dv>=0?"+":"")+diffs[0].dv.toFixed(1)+" J)";
+
+  const el=document.getElementById("chartWhatIf"); el.innerHTML="";
+  const w=el.clientWidth,h=el.clientHeight,p={l:52,r:12,t:12,b:28}, NS="http://www.w3.org/2000/svg"; const s=document.createElementNS(NS,"svg"); s.setAttribute("width","100%"); s.setAttribute("height","100%"); el.appendChild(s);
+  const min=0,max=80, x=v=> p.l+((v-min)/(max-min))*(w-p.l-p.r);
+  const axis=document.createElementNS(NS,"line"); axis.setAttribute("x1",p.l); axis.setAttribute("y1",h-p.b); axis.setAttribute("x2",w-p.r); axis.setAttribute("y2",h-p.b); axis.setAttribute("stroke","#2b3562"); s.appendChild(axis);
+  function one(lbl,val,y,c1,c2){ const defs=document.createElementNS(NS,"defs"); const g=document.createElementNS(NS,"linearGradient"); g.setAttribute("id","gW"+lbl); g.innerHTML=`<stop offset="0%" stop-color="${c1}"/><stop offset="100%" stop-color="${c2}"/>`; defs.appendChild(g); s.appendChild(defs);
+    const ln=document.createElementNS(NS,"line"); ln.setAttribute("x1",p.l); ln.setAttribute("x2",x(val)); ln.setAttribute("y1",y); ln.setAttribute("y2",y); ln.setAttribute("stroke","url(#gW"+lbl+")"); ln.setAttribute("stroke-width","12"); s.appendChild(ln);
+    const tx=document.createElementNS(NS,"text"); tx.setAttribute("x",x(val)+6); tx.setAttribute("y",y+4); tx.setAttribute("fill","var(--text)"); tx.setAttribute("font-size","12"); tx.textContent=`${lbl}: ${val.toFixed(1)} J`; s.appendChild(tx); }
+  const cs=getComputedStyle(document.documentElement);
+  one("Jetzt", now, 100, cs.getPropertyValue("--accent"), cs.getPropertyValue("--accent2"));
+  one("Szenario", neu, 150, cs.getPropertyValue("--bad"), cs.getPropertyValue("--warn"));
+}
+document.getElementById("W_smoke").addEventListener("input", computeWhatIf);
+document.getElementById("W_sport").addEventListener("input", computeWhatIf);
+document.getElementById("W_bp").addEventListener("change", computeWhatIf);
+document.getElementById("W_diet").addEventListener("change", computeWhatIf);
+
+document.getElementById("themeBtn").click(); document.getElementById("themeBtn").click(); // ensure render
+
+restore();
+onChange();
+computeWhatIf();
+
+if(location.protocol.startsWith("http")) {
+  if("serviceWorker" in navigator){ navigator.serviceWorker.register("let_v3_sw.js").catch(()=>{}); }
+}
+</script>
+</body>
+</html>
