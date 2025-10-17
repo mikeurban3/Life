@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Budget-Dashboard v2.3 · Profile (DE) · COMPAT</title>
+<style>
+  :root{--bg:#0e111c;--card:#151a2c;--muted:#9aa4bf;--text:#e9ecf5;--line:#2a2f45}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Helvetica,Arial,sans-serif;background:#0a0d18;color:var(--text)}
+  header{padding:16px;border-bottom:1px solid var(--line);background:#0c1122;position:sticky;top:0}
+  h1{margin:0;font-size:1.2rem}
+  p.sub{margin:.35rem 0 0;color:var(--muted)}
+  main{max-width:1100px;margin:0 auto;padding:14px}
+  .grid{display:grid;grid-template-columns:360px 1fr;gap:14px}
+  @media (max-width:960px){.grid{grid-template-columns:1fr}}
+  .card{background:#12162b;border:1px solid var(--line);border-radius:12px;padding:12px}
+  .row{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;margin:8px 0}
+  input[type=number],select{width:140px;background:#0d1020;color:var(--text);border:1px solid var(--line);border-radius:10px;padding:8px}
+  input[type=range]{width:100%}
+  .pill{display:inline-block;padding:6px 10px;border:1px solid var(--line);border-radius:999px;color:var(--muted);font-size:.85rem;margin-right:6px}
+  .kpi{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:6px 0}
+  .kpi .item{background:#0e1224;border:1px dashed var(--line);border-radius:10px;padding:8px}
+  .kpi .item b{display:block}
+  canvas{width:100%;height:320px;background:#0c1022;border-radius:10px;border:1px solid var(--line)}
+  table{width:100%;border-collapse:collapse;margin-top:8px}
+  th,td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:right}
+  th:first-child,td:first-child{text-align:left}
+  .badge{background:#223055;border:1px solid var(--line);border-radius:10px;color:#d9e5ff;padding:6px 9px;cursor:pointer}
+  .warn{display:none;margin:8px 0;padding:10px;border-radius:10px;border:1px solid #5c2c2c;background:#2a1414;color:#f8d7da}
+  noscript{display:block;margin:10px 0;padding:10px;border:1px solid #5c2c2c;border-radius:10px;background:#2a1414;color:#f8d7da}
+  #jsfail{display:none}
+</style>
+</head>
+<body onload="safeInit()">
+<header>
+  <h1>Budget-Dashboard v2.3 · Profile & Ausgaben (Kompat-Modus)</h1>
+  <p class="sub">Wenn etwas leer bleibt: „JS Diagnose“ drücken. Diese Version nutzt maximale Browser-Kompatibilität.</p>
+</header>
+<main class="grid">
+  <section class="card">
+    <h2>Eingaben</h2>
+    <div id="err" class="warn">Hinweis: Die Seite konnte nicht automatisch initialisieren. Bitte klicke „Neu laden“ oder „Profil-Defaults“.</div>
+    <noscript>JavaScript ist deaktiviert. Unten findest du eine statische Beispielrechnung (Azubi).</noscript>
+
+    <div class="row">
+      <div>
+        <label>Profil wählen</label><br>
+        <small>Auswahl lädt Vorgaben, alles ist editierbar</small>
+      </div>
+      <select id="profile" onchange="onProfileChange()">
+        <option value="azubi_bb">Handwerks-Azubi · Brandenburg</option>
+        <option value="student_berlin">Student · Berlin</option>
+        <option value="geselle_sn">Geselle/Facharbeiter · Sachsen</option>
+        <option value="akademiker_be">Akademiker · Berlin</option>
+        <option value="akademiker_fam_be">Akademiker mit Familie · Berlin</option>
+        <option value="einzelhandel">Angestellte:r · Einzelhandel</option>
+        <option value="oeff_dienst">Beschäftigte:r · Öffentlicher Dienst</option>
+        <option value="oev">ÖPNV/Verkehrsbetriebe</option>
+        <option value="rentner_by">Rentner · Bayern</option>
+      </select>
+    </div>
+
+    <div class="pill" id="pillRegion">–</div>
+    <div class="pill">Stand 2025 · Schätzwerte</div>
+
+    <div class="row"><div><label>Brutto (€/Monat)</label></div><input type="number" id="gross" value="1133" step="10" oninput="compute()"></div>
+    <div class="row">
+      <div><label>Abgaben-Quote (%)</label></div>
+      <input type="range" id="dedRate" value="16" min="10" max="45" step="0.5" oninput="document.getElementById('dedLbl').textContent=this.value+' %'; compute()">
+      <div id="dedLbl">16 %</div>
+    </div>
+    <div class="row"><div><label>Wohnfläche (m²)</label></div><input type="number" id="sqm" value="35" step="1" oninput="compute()"></div>
+    <div class="row"><div><label>Nettokaltmiete (€/m²)</label></div><input type="number" id="rentPerSqm" value="7.5" step="0.1" oninput="compute()"></div>
+    <div class="row"><div><label>Nebenkosten + Heizung (€/Monat)</label></div><input type="number" id="utilities" value="140" step="5" oninput="compute()"></div>
+    <div class="row"><div><label>Mobilität (€/Monat)</label></div><input type="number" id="mobility" value="120" step="5" oninput="compute()"></div>
+    <div class="row"><div><label>Lebensmittel & Haushalt (€/Monat)</label></div><input type="number" id="groceries" value="220" step="5" oninput="compute()"></div>
+    <div class="row"><div><label>Kommunikation (€/Monat)</label></div><input type="number" id="comms" value="40" step="5" oninput="compute()"></div>
+    <div class="row"><div><label>Kleidung & Schuhe (€/Monat)</label></div><input type="number" id="clothes" value="40" step="5" oninput="compute()"></div>
+    <div class="row"><div><label>Freizeit, Sport & Kultur (€/Monat)</label></div><input type="number" id="leisure" value="90" step="5" oninput="compute()"></div>
+    <div class="row"><div><label>Gesundheit & Versicherungen (€/Monat)</label></div><input type="number" id="health" value="35" step="5" oninput="compute()"></div>
+    <div class="row"><div><label>Sparen / Rücklage (€/Monat)</label></div><input type="number" id="saving" value="80" step="5" oninput="compute()"></div>
+    <div class="row"><div><label>Sonstiges (€/Monat)</label></div><input type="number" id="other" value="60" step="5" oninput="compute()"></div>
+
+    <div class="row" style="grid-template-columns:1fr 1fr">
+      <button class="badge" onclick="loadDefaults()">Profil-Defaults</button>
+      <button class="badge" onclick="diag()">JS Diagnose</button>
+    </div>
+
+    <div id="jsfail" class="warn">JS-Hinweis: Es sieht so aus, als ob dein Browser das Skript nicht ausführt. Versuche: „In neuem Tab öffnen“, oder Datei auf die Festplatte speichern und erneut öffnen.</div>
+
+    <div id="diag" class="card" style="margin-top:10px">
+      <h3 style="margin:0 0 6px">Diagnose</h3>
+      <pre id="diagOut" style="white-space:pre-wrap;word-break:break-word;background:#0c1022;padding:8px;border-radius:8px;max-height:220px;overflow:auto">(leer)</pre>
+    </div>
+
+    <div class="card" style="margin-top:10px">
+      <h3 style="margin:0 0 6px">Statische Beispielrechnung (falls JS aus ist)</h3>
+      <div style="color:#9aa4bf;font-size:.9rem">Azubi Brandenburg: Brutto 1.133 €, Abgaben 16 %, Netto ≈ 952 €. Wohnen warm ≈ 403 € (35 m² · 7,50 €/m² + 140 € NK). Sparen 80 € (≈ 8,4 % vom Netto).</div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Ergebnisse</h2>
+    <div class="kpi">
+      <div class="item"><small>Netto (nach Abgaben)</small><b id="netto">–</b></div>
+      <div class="item"><small>Wohnen (warm)</small><b id="rentWarm">–</b></div>
+      <div class="item"><small>Verfügbar nach Wohnen</small><b id="afterHousing">–</b></div>
+      <div class="item"><small>Sparquote</small><b id="saveRate">–</b></div>
+    </div>
+    <canvas id="chartDonut"></canvas>
+    <table id="tbl">
+      <thead><tr><th>Kategorie</th><th>€ / Monat</th><th>Anteil</th></tr></thead>
+      <tbody></tbody>
+      <tfoot><tr><td>Summe Ausgaben</td><td id="sumEur">–</td><td id="sumPct">–</td></tr></tfoot>
+    </table>
+  </section>
+</main>
+
+<script>
+// --- Globals & helpers (no IIFE) ---
+function n(x){ if(x===undefined||x===null) return 0; var s=(''+x).replace(',','.'); var v=Number(s); return isFinite(v)?v:0; }
+function €(x){ return (x||0).toLocaleString('de-DE',{maximumFractionDigits:0}); }
+function pct(x){ return (x||0).toLocaleString('de-DE',{maximumFractionDigits:1})+' %'; }
+function id(x){ return document.getElementById(x); }
+
+var PROFILES = {
+  student_berlin:{region:"Berlin", gross:1200,dedRate:12,sqm:28,rentPerSqm:16.0,utilities:140,mobility:49,groceries:230,comms:30,clothes:35,leisure:100,health:30,saving:50,other:60},
+  azubi_bb:{region:"Brandenburg", gross:1133,dedRate:16,sqm:35,rentPerSqm:7.5,utilities:140,mobility:120,groceries:220,comms:40,clothes:40,leisure:90,health:35,saving:80,other:60},
+  geselle_sn:{region:"Sachsen", gross:2600,dedRate:22,sqm:45,rentPerSqm:8.1,utilities:170,mobility:180,groceries:280,comms:45,clothes:55,leisure:130,health:40,saving:200,other:90},
+  akademiker_be:{region:"Berlin", gross:4600,dedRate:32,sqm:45,rentPerSqm:17.5,utilities:170,mobility:120,groceries:320,comms:50,clothes:70,leisure:180,health:50,saving:600,other:120},
+  akademiker_fam_be:{region:"Berlin", gross:5500,dedRate:33,sqm:75,rentPerSqm:16.5,utilities:260,mobility:260,groceries:650,comms:70,clothes:120,leisure:220,health:80,saving:800,other:160},
+  einzelhandel:{region:"Deutschland", gross:2400,dedRate:21,sqm:40,rentPerSqm:10.0,utilities:160,mobility:120,groceries:260,comms:40,clothes:50,leisure:110,health:40,saving:150,other:80},
+  oeff_dienst:{region:"Deutschland", gross:3800,dedRate:28,sqm:50,rentPerSqm:11.5,utilities:190,mobility:140,groceries:320,comms:45,clothes:70,leisure:150,health:55,saving:450,other:120},
+  oev:{region:"Deutschland", gross:3300,dedRate:26,sqm:48,rentPerSqm:10.8,utilities:185,mobility:160,groceries:300,comms:45,clothes:60,leisure:140,health:50,saving:350,other:110},
+  rentner_by:{region:"Bayern", gross:2800,dedRate:14,sqm:55,rentPerSqm:12.0,utilities:200,mobility:110,groceries:300,comms:40,clothes:45,leisure:140,health:90,saving:200,other:80}
+};
+
+function onProfileChange(){
+  var key = id('profile').value;
+  var p = PROFILES[key]||PROFILES.azubi_bb;
+  id('pillRegion').textContent = 'Region: '+p.region;
+  id('gross').value = p.gross;
+  id('dedRate').value = p.dedRate; id('dedLbl').textContent = p.dedRate+' %';
+  id('sqm').value = p.sqm;
+  id('rentPerSqm').value = p.rentPerSqm;
+  id('utilities').value = p.utilities;
+  id('mobility').value = p.mobility;
+  id('groceries').value = p.groceries;
+  id('comms').value = p.comms;
+  id('clothes').value = p.clothes;
+  id('leisure').value = p.leisure;
+  id('health').value = p.health;
+  id('saving').value = p.saving;
+  id('other').value = p.other;
+  compute();
+}
+
+function compute(){
+  try{
+    var gross = n(id('gross').value);
+    var ded = n(id('dedRate').value)/100;
+    var net = Math.max(0, gross*(1-ded));
+    var warm = n(id('sqm').value)*n(id('rentPerSqm').value)+n(id('utilities').value);
+    var data = {
+      housing:warm, mobility:n(id('mobility').value), groceries:n(id('groceries').value), comms:n(id('comms').value),
+      clothes:n(id('clothes').value), leisure:n(id('leisure').value), health:n(id('health').value),
+      saving:n(id('saving').value), other:n(id('other').value)
+    };
+    var sum = 0; for(var k in data){ sum+=data[k]; }
+    var afterHousing = Math.max(0, net - warm);
+    var saveRate = net>0 ? data.saving/net*100 : 0;
+
+    id('netto').textContent = €(net)+' €';
+    id('rentWarm').textContent = €(warm)+' €';
+    id('afterHousing').textContent = €(afterHousing)+' €';
+    id('saveRate').textContent = pct(saveRate);
+
+    var tbody = document.querySelector('#tbl tbody'); tbody.innerHTML='';
+    var cats=[['Wohnen (warm)','housing'],['Mobilität','mobility'],['Lebensmittel & Haushalt','groceries'],['Kommunikation','comms'],
+              ['Kleidung & Schuhe','clothes'],['Freizeit, Sport & Kultur','leisure'],['Gesundheit & Versicherungen','health'],
+              ['Sparen / Rücklage','saving'],['Sonstiges','other']];
+    for(var i=0;i<cats.length;i++){
+      var tr=document.createElement('tr'); var v=data[cats[i][1]]; var share=net>0? v/net*100:0;
+      tr.innerHTML='<td>'+cats[i][0]+'</td><td>'+€(v)+' €</td><td>'+pct(share)+'</td>'; tbody.appendChild(tr);
+    }
+    id('sumEur').textContent = €(sum)+' €';
+    id('sumPct').textContent = net>0 ? pct(sum/net*100) : '–';
+
+    drawDonut(data);
+    id('jsfail').style.display='none';
+  }catch(e){
+    id('jsfail').style.display='block';
+    diag('compute error: '+e.message);
+  }
+}
+
+function drawDonut(data){
+  var c = id('chartDonut'); var ctx = c.getContext('2d');
+  var dpr = window.devicePixelRatio||1; c.width = Math.round(c.clientWidth*dpr); c.height = Math.round(c.clientHeight*dpr);
+  var W=c.width,H=c.height,cx=W/2,cy=H/2,r=Math.min(cx,cy)-10*dpr;
+  ctx.clearRect(0,0,W,H);
+  var vals=[data.housing,data.mobility,data.groceries,data.comms,data.clothes,data.leisure,data.health,data.saving,data.other];
+  var total=vals.reduce(function(a,b){return a+b;},0)||1;
+  ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2); ctx.strokeStyle="#222943"; ctx.lineWidth=22*dpr; ctx.stroke();
+  var cols=['#6ea8fe','#6efed3','#fdd87c','#ff9db7','#b79cff','#9ee07a','#9cd7ff','#f7a976','#e0e2ff'];
+  var start=-Math.PI/2;
+  for(var i=0;i<vals.length;i++){
+    var end=start+(vals[i]/total)*Math.PI*2;
+    ctx.beginPath(); ctx.strokeStyle=cols[i%cols.length]; ctx.lineWidth=22*dpr; ctx.arc(cx,cy,r,start,end); ctx.stroke();
+    start=end;
+  }
+  ctx.fillStyle="#cdd6ef"; ctx.textAlign="center"; ctx.font=(14*dpr)+'px system-ui'; ctx.fillText('Summe Ausgaben',cx,cy-6*dpr);
+  ctx.font=(22*dpr)+'px system-ui'; ctx.fillText(€(total)+' €',cx,cy+20*dpr);
+}
+
+function loadDefaults(){
+  onProfileChange();
+}
+
+function diag(msg){
+  var o = {
+    msg: msg||'ok',
+    readyState: document.readyState,
+    ua: navigator.userAgent,
+    profileSelect: (function(){ var el=id('profile'); return el?{val:el.value,len:el.options.length}:null; })(),
+    inputsPresent: !!(id('gross')&&id('dedRate')&&id('sqm')&&id('rentPerSqm')),
+    canvasesPresent: !!(id('chartDonut')),
+    values:{
+      gross:id('gross')?id('gross').value:null,
+      dedRate:id('dedRate')?id('dedRate').value:null,
+      sqm:id('sqm')?id('sqm').value:null,
+      rentPerSqm:id('rentPerSqm')?id('rentPerSqm').value:null
+    },
+    time:new Date().toISOString()
+  };
+  id('diagOut').textContent = JSON.stringify(o,null,2);
+}
+
+function safeInit(){
+  try{
+    // set default profile and compute once
+    id('profile').value = 'azubi_bb';
+    onProfileChange();
+    diag('init');
+  }catch(e){
+    id('err').style.display='block';
+    id('jsfail').style.display='block';
+    diag('init error: '+e.message);
+  }
+}
+</script>
+</body>
+</html>

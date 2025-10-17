@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Budget-Dashboard v2.1 · Profile (DE)</title>
+<style>
+  :root{
+    --bg:#0e111c; --card:#151a2c; --muted:#9aa4bf; --text:#e9ecf5; --accent:#6ea8fe; --accent2:#6efed3; --line:#2a2f45;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Helvetica,Arial,sans-serif;background:linear-gradient(180deg,#0a0d18,#10162b 52%,#0a0d18);color:var(--text)}
+  header{padding:18px;border-bottom:1px solid var(--line);position:sticky;top:0;background:rgba(12,16,34,.7);backdrop-filter:saturate(1.1) blur(8px);z-index:5}
+  h1{margin:0;font-size:1.35rem}
+  p.sub{margin:.35rem 0 0;color:var(--muted)}
+  main{max-width:1200px;margin:0 auto;padding:16px}
+  .grid{display:grid;grid-template-columns:360px 1fr;gap:16px}
+  @media (max-width:960px){.grid{grid-template-columns:1fr}}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;box-shadow:0 10px 30px rgba(0,0,0,.25)}
+  h2{font-size:1.05rem;margin:0 0 8px}
+  .row{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;margin:10px 0}
+  .row small{color:var(--muted)}
+  input[type=range]{width:100%}
+  input[type=number]{width:120px;background:#0d1020;color:var(--text);border:1px solid var(--line);border-radius:10px;padding:8px}
+  select{width:100%;background:#0d1020;color:var(--text);border:1px solid var(--line);border-radius:10px;padding:10px}
+  .pill{display:inline-block;padding:6px 10px;border:1px solid var(--line);border-radius:999px;color:var(--muted);font-size:.85rem;margin-right:6px}
+  .kpi{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:6px 0}
+  .kpi .item{background:#0e1224;border:1px dashed var(--line);border-radius:12px;padding:10px}
+  .kpi .item b{display:block;font-size:1.05rem}
+  .charts{display:grid;grid-template-columns:1fr;gap:12px}
+  @media (min-width:1100px){.charts{grid-template-columns:1fr 1fr}}
+  canvas{width:100%;height:360px;background:#0c1022;border-radius:12px;border:1px solid var(--line)}
+  table{width:100%;border-collapse:collapse;margin-top:10px}
+  th,td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:right}
+  th:first-child,td:first-child{text-align:left}
+  tfoot td{font-weight:700}
+  .note{color:var(--muted);font-size:.9rem;line-height:1.4;margin-top:8px}
+  .badge{background:linear-gradient(90deg,rgba(110,168,254,.25),rgba(110,254,211,.25));padding:6px 9px;border-radius:10px;border:1px solid var(--line);color:#d9e5ff;font-size:.85rem;cursor:pointer}
+  .flex{display:flex;gap:8px;flex-wrap:wrap}
+  .warn{display:none;margin:8px 0;padding:10px;border-radius:10px;border:1px solid #5c2c2c;background:#2a1414;color:#f8d7da}
+  noscript{display:block;margin:10px 0;padding:10px;border:1px solid #5c2c2c;border-radius:10px;background:#2a1414;color:#f8d7da}
+</style>
+</head>
+<body>
+<header>
+  <h1>Budget-Dashboard v2.1: Deutschland · Profile & Ausgaben</h1>
+  <p class="sub">Monatsbudget in Euro & Prozent · wähle ein Profil, passe Annahmen an, sieh sofort die Ergebnisse</p>
+</header>
+<main class="grid">
+  <section class="card">
+    <h2>Eingaben</h2>
+    <div id="err" class="warn">Es gab ein Initialisierungsproblem. Bitte Seite neu laden. Wenn das nicht hilft, teile mir mit, welchen Browser/Version du nutzt.</div>
+    <noscript>Dieses Dashboard benötigt JavaScript.</noscript>
+
+    <div class="row">
+      <div>
+        <label>Profil wählen</label><br>
+        <small>Vorgaben werden geladen, alle Felder sind anpassbar</small>
+      </div>
+      <select id="profile"><option value="">(lädt …)</option></select>
+    </div>
+
+    <div class="flex" style="margin-bottom:8px">
+      <span class="pill" id="pillRegion">–</span>
+      <span class="pill" id="pillNote">Stand 2025 · Schätzwerte</span>
+    </div>
+
+    <div class="row">
+      <div><label>Brutto (€/Monat)</label><br><small>Tarif/Marktwert je Profil, editierbar</small></div>
+      <input type="number" id="gross" value="2500" min="600" step="10" inputmode="decimal">
+    </div>
+
+    <div class="row">
+      <div><label>Abgaben-Quote (%)</label><br><small>Steuern + Sozialabgaben (Richtwert)</small></div>
+      <input type="range" id="dedRate" value="22" min="10" max="45" step="0.5" oninput="dedLbl.textContent=this.value+' %'">
+      <div id="dedLbl" style="min-width:54px;text-align:right">22 %</div>
+    </div>
+
+    <div class="row">
+      <div><label>Wohnfläche (m²)</label></div>
+      <input type="number" id="sqm" value="40" min="15" max="120" step="1" inputmode="decimal">
+    </div>
+
+    <div class="row">
+      <div><label>Nettokaltmiete (€/m²)</label><br><small>Regional stark unterschiedlich</small></div>
+      <input type="number" id="rentPerSqm" value="9.0" min="4.5" max="20" step="0.1" inputmode="decimal">
+    </div>
+
+    <div class="row">
+      <div><label>Nebenkosten + Heizung (€/Monat)</label></div>
+      <input type="number" id="utilities" value="160" min="0" step="5" inputmode="decimal">
+    </div>
+
+    <div class="row">
+      <div><label>Mobilität (€/Monat)</label><br><small>ÖPNV/Auto (Sprit, Vers., Wartung)</small></div>
+      <input type="number" id="mobility" value="140" min="0" step="5" inputmode="decimal">
+    </div>
+
+    <div class="row">
+      <div><label>Lebensmittel & Haushalt (€/Monat)</label></div>
+      <input type="number" id="groceries" value="260" min="100" step="5" inputmode="decimal">
+    </div>
+
+    <div class="row">
+      <div><label>Kommunikation (€/Monat)</label></div>
+      <input type="number" id="comms" value="45" min="10" step="5" inputmode="decimal">
+    </div>
+
+    <div class="row">
+      <div><label>Kleidung & Schuhe (€/Monat)</label></div>
+      <input type="number" id="clothes" value="50" min="0" step="5" inputmode="decimal">
+    </div>
+
+    <div class="row">
+      <div><label>Freizeit, Sport & Kultur (€/Monat)</label></div>
+      <input type="number" id="leisure" value="120" min="0" step="5" inputmode="decimal">
+    </div>
+
+    <div class="row">
+      <div><label>Gesundheit & Versicherungen (€/Monat)</label></div>
+      <input type="number" id="health" value="40" min="0" step="5" inputmode="decimal">
+    </div>
+
+    <div class="row">
+      <div><label>Sparen / Rücklage (€/Monat)</label></div>
+      <input type="number" id="saving" value="150" min="0" step="5" inputmode="decimal">
+    </div>
+
+    <div class="row">
+      <div><label>Sonstiges (€/Monat)</label></div>
+      <input type="number" id="other" value="80" min="0" step="5" inputmode="decimal">
+    </div>
+
+    <div class="flex" style="margin-top:6px">
+      <button id="reset" class="badge" type="button">Profil-Defaults laden</button>
+      <button id="equalize" class="badge" type="button">Anteile normalisieren</button>
+    </div>
+
+    <div class="note">
+      <b>Hinweis:</b> Abgaben-Quote ist eine Näherung. Für exakte Netto-Werte bitte separaten Brutto-Netto-Rechner nutzen. Bei Komma-Eingaben (z. B. 16,5) werden Kommas automatisch in Punkte umgewandelt.
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Ergebnisse</h2>
+    <div class="kpi">
+      <div class="item"><small>Netto (nach Abgaben)</small><b id="netto">–</b></div>
+      <div class="item"><small>Wohnen (warm)</small><b id="rentWarm">–</b></div>
+      <div class="item"><small>Verfügbar nach Wohnen</small><b id="afterHousing">–</b></div>
+      <div class="item"><small>Sparquote</small><b id="saveRate">–</b></div>
+    </div>
+
+    <div class="charts">
+      <canvas id="chartDonut"></canvas>
+      <canvas id="chartBars"></canvas>
+    </div>
+
+    <table id="tbl">
+      <thead><tr><th>Kategorie</th><th>€ / Monat</th><th>Anteil</th></tr></thead>
+      <tbody></tbody>
+      <tfoot>
+        <tr><td>Summe Ausgaben</td><td id="sumEur">–</td><td id="sumPct">–</td></tr>
+      </tfoot>
+    </table>
+  </section>
+</main>
+
+<script>
+(function(){
+  const € = (n)=> (n||0).toLocaleString('de-DE',{minimumFractionDigits:0,maximumFractionDigits:0});
+  const pct = (n)=> (n||0).toLocaleString('de-DE',{minimumFractionDigits:1,maximumFractionDigits:1})+' %';
+  const num = (v)=>{
+    if(v===undefined || v===null) return 0;
+    const s = String(v).replace(',','.');
+    const n = Number(s);
+    return isFinite(n) ? n : 0;
+  };
+
+  const PROFILES = [
+    {id:"student_berlin", name:"Student · Berlin", region:"Berlin", gross:1200, dedRate:12, sqm:28, rentPerSqm:16.0, utilities:140, mobility:49, groceries:230, comms:30, clothes:35, leisure:100, health:30, saving:50, other:60},
+    {id:"azubi_bb", name:"Handwerks-Azubi · Brandenburg", region:"Brandenburg", gross:1133, dedRate:16, sqm:35, rentPerSqm:7.5, utilities:140, mobility:120, groceries:220, comms:40, clothes:40, leisure:90, health:35, saving:80, other:60},
+    {id:"geselle_sn", name:"Geselle/Facharbeiter · Sachsen", region:"Sachsen", gross:2600, dedRate:22, sqm:45, rentPerSqm:8.1, utilities:170, mobility:180, groceries:280, comms:45, clothes:55, leisure:130, health:40, saving:200, other:90},
+    {id:"akademiker_be", name:"Akademiker · Berlin", region:"Berlin", gross:4600, dedRate:32, sqm:45, rentPerSqm:17.5, utilities:170, mobility:120, groceries:320, comms:50, clothes:70, leisure:180, health:50, saving:600, other:120},
+    {id:"akademiker_fam_be", name:"Akademiker mit Familie · Berlin", region:"Berlin", gross:5500, dedRate:33, sqm:75, rentPerSqm:16.5, utilities:260, mobility:260, groceries:650, comms:70, clothes:120, leisure:220, health:80, saving:800, other:160},
+    {id:"rentner_by", name:"Rentner · Bayern", region:"Bayern", gross:2800, dedRate:14, sqm:55, rentPerSqm:12.0, utilities:200, mobility:110, groceries:300, comms:40, clothes:45, leisure:140, health:90, saving:200, other:80},
+    {id:"einzelhandel", name:"Angestellte:r · Einzelhandel", region:"Deutschland", gross:2400, dedRate:21, sqm:40, rentPerSqm:10.0, utilities:160, mobility:120, groceries:260, comms:40, clothes:50, leisure:110, health:40, saving:150, other:80},
+    {id:"oeff_dienst", name:"Beschäftigte:r · Öffentlicher Dienst", region:"Deutschland", gross:3800, dedRate:28, sqm:50, rentPerSqm:11.5, utilities:190, mobility:140, groceries:320, comms:45, clothes:70, leisure:150, health:55, saving:450, other:120},
+    {id:"oev", name:"ÖPNV/Verkehrsbetriebe", region:"Deutschland", gross:3300, dedRate:26, sqm:48, rentPerSqm:10.8, utilities:185, mobility:160, groceries:300, comms:45, clothes:60, leisure:140, health:50, saving:350, other:110}
+  ];
+
+  const categories = [
+    {key:'housing', label:'Wohnen (warm)'},
+    {key:'mobility', label:'Mobilität'},
+    {key:'groceries', label:'Lebensmittel & Haushalt'},
+    {key:'comms', label:'Kommunikation'},
+    {key:'clothes', label:'Kleidung & Schuhe'},
+    {key:'leisure', label:'Freizeit, Sport & Kultur'},
+    {key:'health', label:'Gesundheit & Versicherungen'},
+    {key:'saving', label:'Sparen / Rücklage'},
+    {key:'other', label:'Sonstiges'},
+  ];
+
+  function qs(id){return document.getElementById(id)}
+  const els = {
+    err: qs('err'),
+    profile: qs('profile'),
+    pillRegion: qs('pillRegion'),
+    gross: qs('gross'),
+    dedRate: qs('dedRate'),
+    sqm: qs('sqm'),
+    rentPerSqm: qs('rentPerSqm'),
+    utilities: qs('utilities'),
+    mobility: qs('mobility'),
+    groceries: qs('groceries'),
+    comms: qs('comms'),
+    clothes: qs('clothes'),
+    leisure: qs('leisure'),
+    health: qs('health'),
+    saving: qs('saving'),
+    other: qs('other'),
+    netto: qs('netto'),
+    rentWarm: qs('rentWarm'),
+    afterHousing: qs('afterHousing'),
+    saveRate: qs('saveRate'),
+    sumEur: qs('sumEur'),
+    sumPct: qs('sumPct'),
+    tblBody: document.querySelector('#tbl tbody'),
+    reset: qs('reset'),
+    equalize: qs('equalize'),
+    dedLbl: qs('dedLbl'),
+    donut: qs('chartDonut'),
+    bars: qs('chartBars')
+  };
+
+  let started = false;
+
+  function populateProfiles(){
+    els.profile.innerHTML = "";
+    PROFILES.forEach(p=>{
+      const opt = document.createElement('option');
+      opt.value = p.id; opt.textContent = p.name;
+      els.profile.appendChild(opt);
+    });
+    // Default selection
+    els.profile.value = "azubi_bb";
+  }
+
+  function loadProfile(id){
+    const p = PROFILES.find(x=>x.id===id) || PROFILES[0];
+    els.pillRegion.textContent = `Region: ${p.region}`;
+    els.gross.value = p.gross;
+    els.dedRate.value = p.dedRate; els.dedLbl.textContent = p.dedRate + " %";
+    els.sqm.value = p.sqm;
+    els.rentPerSqm.value = p.rentPerSqm;
+    els.utilities.value = p.utilities;
+    els.mobility.value = p.mobility;
+    els.groceries.value = p.groceries;
+    els.comms.value = p.comms;
+    els.clothes.value = p.clothes;
+    els.leisure.value = p.leisure;
+    els.health.value = p.health;
+    els.saving.value = p.saving;
+    els.other.value = p.other;
+    compute();
+  }
+
+  function compute(){
+    try{
+      const gross = num(els.gross.value);
+      const dedRate = num(els.dedRate.value)/100;
+      const net = Math.max(0, gross * (1 - dedRate));
+
+      const sqm = num(els.sqm.value);
+      const rentPerSqm = num(els.rentPerSqm.value);
+      const kalt = sqm * rentPerSqm;
+      const nk = num(els.utilities.value);
+      const warm = kalt + nk;
+
+      const data = {
+        housing: warm,
+        mobility: num(els.mobility.value),
+        groceries: num(els.groceries.value),
+        comms: num(els.comms.value),
+        clothes: num(els.clothes.value),
+        leisure: num(els.leisure.value),
+        health: num(els.health.value),
+        saving: num(els.saving.value),
+        other: num(els.other.value),
+      };
+
+      const sum = Object.values(data).reduce((a,b)=>a+b,0);
+      const afterHousing = Math.max(0, net - warm);
+      const saveRate = net>0 ? (data.saving/net*100) : 0;
+
+      els.netto.textContent = €(net) + " €";
+      els.rentWarm.textContent = €(warm) + " €";
+      els.afterHousing.textContent = €(afterHousing) + " €";
+      els.saveRate.textContent = pct(saveRate);
+
+      els.tblBody.innerHTML = "";
+      categories.forEach(cat=>{
+        const tr = document.createElement('tr');
+        const v = data[cat.key];
+        const share = net>0 ? (v/net*100) : 0;
+        tr.innerHTML = `<td>${cat.label}</td><td>${€(v)} €</td><td>${pct(share)}</td>`;
+        els.tblBody.appendChild(tr);
+      });
+      els.sumEur.textContent = €(sum) + " €";
+      els.sumPct.textContent = net>0 ? pct(sum/net*100) : '–';
+
+      drawDonut(data, net);
+      drawBars(data, net);
+      if(!started){ started = true; }
+    }catch(e){
+      els.err.style.display = 'block';
+      console.error(e);
+    }
+  }
+
+  function drawDonut(data, net){
+    const ctx = els.donut.getContext('2d');
+    const dpr = window.devicePixelRatio||1;
+    ctx.canvas.width = Math.round(ctx.canvas.clientWidth * dpr);
+    ctx.canvas.height = Math.round(ctx.canvas.clientHeight * dpr);
+    const W = ctx.canvas.width, H = ctx.canvas.height;
+    const cx = W/2, cy = H/2, r = Math.min(cx,cy)-12*dpr;
+    ctx.clearRect(0,0,W,H);
+
+    const values = categories.map(c=>data[c.key]);
+    const total = values.reduce((a,b)=>a+b,0);
+    ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2); ctx.strokeStyle="#222943"; ctx.lineWidth=24*dpr; ctx.stroke();
+    const palette = ['#6ea8fe','#6efed3','#fdd87c','#ff9db7','#b79cff','#9ee07a','#9cd7ff','#f7a976','#e0e2ff'];
+    let start = -Math.PI/2;
+    values.forEach((v,i)=>{
+      const frac = total>0 ? v/total : 0;
+      const end = start + frac * Math.PI*2;
+      ctx.beginPath();
+      ctx.strokeStyle = palette[i%palette.length];
+      ctx.lineWidth = 24*dpr;
+      ctx.arc(cx,cy,r,start,end);
+      ctx.stroke();
+      start = end;
+    });
+    ctx.fillStyle = "#cdd6ef"; ctx.textAlign="center";
+    ctx.font = `${14*dpr}px system-ui`; ctx.fillText("Summe Ausgaben", cx, cy - 6*dpr);
+    ctx.font = `${22*dpr}px system-ui`; ctx.fillText(€(total) + " €", cx, cy + 20*dpr);
+  }
+
+  function drawBars(data, net){
+    const ctx = els.bars.getContext('2d');
+    const dpr = window.devicePixelRatio||1;
+    ctx.canvas.width = Math.round(ctx.canvas.clientWidth * dpr);
+    ctx.canvas.height = Math.round(ctx.canvas.clientHeight * dpr);
+    const W = ctx.canvas.width, H = ctx.canvas.height;
+    ctx.clearRect(0,0,W,H);
+
+    const values = categories.map(c=>data[c.key]);
+    const labels = categories.map(c=>c.label);
+    const maxV = Math.max(1, ...values);
+    const left = 70*dpr, right = 20*dpr, bottom = 40*dpr, top = 20*dpr;
+    const plotW = W - left - right, plotH = H - top - bottom;
+
+    ctx.strokeStyle="#222943"; ctx.lineWidth=1*dpr;
+    ctx.beginPath();
+    ctx.moveTo(left, top); ctx.lineTo(left, top+plotH); ctx.lineTo(left+plotW, top+plotH);
+    ctx.stroke();
+
+    const bw = plotW / values.length * 0.7;
+    const palette = ['#6ea8fe','#6efed3','#fdd87c','#ff9db7','#b79cff','#9ee07a','#9cd7ff','#f7a976','#e0e2ff'];
+    values.forEach((v,i)=>{
+      const x = left + (i+0.5) * (plotW/values.length) - bw/2;
+      const h = (v/maxV) * (plotH*0.9);
+      const y = top + plotH - h;
+      ctx.fillStyle = palette[i%palette.length];
+      ctx.fillRect(x, y, bw, h);
+      ctx.fillStyle = "#b4bed9";
+      ctx.font = `${11*dpr}px system-ui`;
+      ctx.textAlign="center";
+      ctx.fillText(€(v)+" €", x + bw/2, y - 6*dpr);
+      ctx.save();
+      ctx.translate(x + bw/2, top + plotH + 14*dpr);
+      ctx.rotate(-Math.PI/7);
+      ctx.fillText(labels[i], 0, 0);
+      ctx.restore();
+    });
+
+    ctx.fillStyle="#cdd6ef";
+    ctx.font = `${14*dpr}px system-ui`;
+    ctx.textAlign="left";
+    ctx.fillText("Ausgaben je Kategorie (Euro)", left, top - 2*dpr + 0);
+  }
+
+  function equalizeShares(){
+    const gross = num(els.gross.value);
+    const net = Math.max(0, gross * (1 - (num(els.dedRate.value)/100)));
+    const sqm = num(els.sqm.value);
+    const warm = sqm * num(els.rentPerSqm.value) + num(els.utilities.value);
+
+    const saving = num(els.saving.value);
+    const remain = Math.max(0, net - warm - saving);
+    const keys = ['mobility','groceries','comms','clothes','leisure','health','other'];
+    const current = keys.map(k=>num(els[k].value));
+    const curSum = current.reduce((a,b)=>a+b,0) || 1;
+    keys.forEach((k,i)=>{
+      els[k].value = Math.round(current[i] / curSum * remain);
+    });
+    compute();
+  }
+
+  function init(){
+    try{
+      populateProfiles();
+      // In seltenen Fällen (Edge mit lokalem file:) kann der DOM-Load-Flow zicken.
+      if(!els.profile.options.length){
+        populateProfiles();
+      }
+      if(!els.profile.value){
+        els.profile.selectedIndex = 0;
+      }
+      loadProfile(els.profile.value);
+      ['input','change'].forEach(ev=>{
+        document.querySelectorAll('input,select').forEach(el=>el.addEventListener(ev, compute));
+      });
+      els.profile.addEventListener('change', e=> loadProfile(e.target.value));
+      els.reset.addEventListener('click', ()=> loadProfile(els.profile.value));
+      els.equalize.addEventListener('click', equalizeShares);
+    }catch(e){
+      els.err.style.display='block';
+      console.error(e);
+    }
+  }
+
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', init);
+  }else{
+    init();
+  }
+})();
+</script>
+</body>
+</html>
